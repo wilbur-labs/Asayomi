@@ -1,0 +1,29 @@
+services:
+  backend:
+    build: ./backend
+    container_name: asayomi-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      DATABASE_URL: sqlite:////app/data/asayomi.db
+      DEBUG: "true"
+      COLLECTION_INTERVAL_HOURS: "8"
+      DATA_RETENTION_DAYS: "30"
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-2024-02-15-preview}
+      AZURE_OPENAI_DEPLOYMENT_NAME: ${AZURE_OPENAI_DEPLOYMENT_NAME:-gpt-4o-mini}
+      FRONTEND_URL: http://localhost:5173
+
+  frontend:
+    build: ./frontend
+    container_name: asayomi-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"

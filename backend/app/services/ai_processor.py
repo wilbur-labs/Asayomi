@@ -1,4 +1,4 @@
-"""Azure OpenAI による記事処理サービス"""
+"""Azure OpenAI による記事処理サービス（要約・分類・スコア・翻訳）"""
 import json
 import logging
 from typing import Optional
@@ -14,14 +14,22 @@ logger = logging.getLogger(__name__)
 
 CATEGORIES = ["総合", "テクノロジー", "経済・ビジネス", "国際"]
 
-SYSTEM_PROMPT = """あなたは日本のニュース分析アシスタントです。以下のタスクを実行してください：
-1. 記事の日本語要約（100文字以内）
-2. カテゴリ分類（総合/テクノロジー/経済・ビジネス/国際）
-3. 重要度スコア（0-10、10が最重要）
-4. タグ（カンマ区切り、最大3つ）
+SYSTEM_PROMPT_JA = """あなたは日本のニュース分析アシスタントです。日本語の記事を分析し、JSON で回答してください：
+- summary: 100文字以内の日本語要約
+- category: 「総合」「テクノロジー」「経済・ビジネス」「国際」のいずれか
+- score: 0-10 の重要度（10が最重要）
+- tags: カンマ区切りで最大3つの日本語タグ
 
-JSON形式で回答してください：
-{"summary": "...", "category": "...", "score": 7, "tags": "タグ1,タグ2"}"""
+形式: {"summary": "...", "category": "...", "score": 7, "tags": "タグ1,タグ2,タグ3"}"""
+
+SYSTEM_PROMPT_EN = """あなたは英日翻訳・ニュース分析アシスタントです。英語の記事を読み、JSON で回答してください：
+- translated_title: 英語タイトルの自然な日本語訳
+- summary: 100文字以内の日本語要約
+- category: 「総合」「テクノロジー」「経済・ビジネス」「国際」のいずれか
+- score: 0-10 の重要度（10が最重要）
+- tags: カンマ区切りで最大3つの日本語タグ
+
+形式: {"translated_title": "...", "summary": "...", "category": "...", "score": 7, "tags": "タグ1,タグ2,タグ3"}"""
 
 
 def get_client() -> Optional[AzureOpenAI]:
@@ -34,20 +42,30 @@ def get_client() -> Optional[AzureOpenAI]:
     )
 
 
+def _build_user_content(article: Article) -> str:
+    body = article.full_content or article.original_content or ""
+    return f"タイトル: {article.original_title or article.title}\n本文:\n{body[:4000]}"
+
+
 def process_article(client: AzureOpenAI, article: Article) -> bool:
-    """1記事をAI処理"""
+    """1記事をAI処理。英語記事は日本語に翻訳。"""
+    is_english = article.language == "en"
+    system_prompt = SYSTEM_PROMPT_EN if is_english else SYSTEM_PROMPT_JA
+
     try:
-        content = f"タイトル: {article.title}\n内容: {article.original_content or ''}"
         response = client.chat.completions.create(
             model=settings.azure_openai_deployment_name,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": content[:2000]},
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": _build_user_content(article)},
             ],
             temperature=0.3,
-            max_tokens=300,
+            max_tokens=400,
+            response_format={"type": "json_object"},
         )
         result = json.loads(response.choices[0].message.content)
+        if is_english and result.get("translated_title"):
+            article.title = result["translated_title"]  # 表示用を翻訳後に更新
         article.summary = result.get("summary", "")
         article.category = result.get("category", article.category)
         article.importance_score = float(result.get("score", 5))
@@ -68,7 +86,13 @@ def process_unprocessed(limit: int = 20) -> int:
 
     db = SessionLocal()
     try:
-        articles = db.query(Article).filter(Article.processed == False).limit(limit).all()
+        articles = (
+            db.query(Article)
+            .filter(Article.processed == False, Article.is_duplicate == False)
+            .order_by(Article.collected_at.desc())
+            .limit(limit)
+            .all()
+        )
         count = 0
         for article in articles:
             if process_article(client, article):
