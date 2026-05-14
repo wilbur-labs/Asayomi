@@ -67,3 +67,28 @@ export const triggerWeekly = () => api.post('/system/briefing/weekly')
 export const triggerMonthly = () => api.post('/system/briefing/monthly')
 export const triggerNotify = () => api.post('/system/notify')
 export const triggerRunAll = () => api.post('/system/run-all')
+
+// Analytics / chat / export
+export const getTrendingTags = (days = 7, limit = 20) =>
+  api.get<{ days: number; tags: { tag: string; count: number }[] }>(
+    '/trends/tags',
+    { params: { days, limit } }
+  )
+
+export const getTimeline = (days = 14) =>
+  api.get<{ days: number; timeline: any[] }>('/trends/timeline', { params: { days } })
+
+export const getUsage = (days = 30) =>
+  api.get<{
+    days: number
+    total_calls: number
+    total_tokens: number
+    total_cost_usd: number
+    by_operation: Record<string, { count: number; tokens: number; cost: number }>
+  }>('/usage', { params: { days } })
+
+export const askChat = (question: string) =>
+  api.post<{
+    answer: string
+    sources: { id: number; title: string; url: string; category: string }[]
+  }>('/chat', { question })

@@ -12,6 +12,8 @@ import ArticlesPage from './pages/ArticlesPage'
 import BriefingPage from './pages/BriefingPage'
 import StatsPage from './pages/StatsPage'
 import SourcesPage from './pages/SourcesPage'
+import ChatPage from './pages/ChatPage'
+import TrendsPage from './pages/TrendsPage'
 import { useTheme } from './contexts/ThemeContext'
 
 const { Header, Content } = Layout
@@ -67,6 +69,8 @@ function AppLayout() {
           <Routes>
             <Route path="/" element={<ArticlesPage />} />
             <Route path="/briefing" element={<BriefingPage />} />
+            <Route path="/chat" element={<ChatPage />} />
+            <Route path="/trends" element={<TrendsPage />} />
             <Route path="/stats" element={<StatsPage />} />
             <Route path="/sources" element={<SourcesPage />} />
           </Routes>

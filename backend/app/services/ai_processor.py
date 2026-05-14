@@ -63,6 +63,19 @@ def process_article(client: AzureOpenAI, article: Article) -> bool:
             max_tokens=400,
             response_format={"type": "json_object"},
         )
+        # 用量記録
+        try:
+            from .usage import record_usage
+            usage = response.usage
+            if usage:
+                record_usage(
+                    operation="translate" if is_english else "summarize",
+                    model=settings.azure_openai_deployment_name,
+                    prompt_tokens=usage.prompt_tokens,
+                    completion_tokens=usage.completion_tokens,
+                )
+        except Exception:
+            pass
         result = json.loads(response.choices[0].message.content)
         if is_english and result.get("translated_title"):
             article.title = result["translated_title"]  # 表示用を翻訳後に更新
