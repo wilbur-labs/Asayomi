@@ -1,12 +1,16 @@
 import { Layout, Menu, Typography } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
-  ReadOutlined,
+  HomeOutlined,
   FileTextOutlined,
   BarChartOutlined,
   DatabaseOutlined,
   MessageOutlined,
   LineChartOutlined,
+  AppstoreOutlined,
+  CodeOutlined,
+  DollarCircleOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons'
 
 const { Sider } = Layout
@@ -21,13 +25,22 @@ export default function Sidebar({ collapsed }: SidebarProps) {
   const location = useLocation()
 
   const items = [
-    { key: '/', icon: <ReadOutlined />, label: 'Articles' },
+    { key: '/', icon: <HomeOutlined />, label: 'All Articles' },
+    { type: 'divider' as const },
+    { key: '/category/総合', icon: <AppstoreOutlined />, label: '総合' },
+    { key: '/category/テクノロジー', icon: <CodeOutlined />, label: 'テクノロジー' },
+    { key: '/category/経済・ビジネス', icon: <DollarCircleOutlined />, label: '経済・ビジネス' },
+    { key: '/category/国際', icon: <GlobalOutlined />, label: '国際' },
+    { type: 'divider' as const },
     { key: '/briefing', icon: <FileTextOutlined />, label: 'Briefing' },
     { key: '/chat', icon: <MessageOutlined />, label: 'Chat' },
     { key: '/trends', icon: <LineChartOutlined />, label: 'Trends' },
     { key: '/stats', icon: <BarChartOutlined />, label: 'Stats' },
     { key: '/sources', icon: <DatabaseOutlined />, label: 'Sources' },
   ]
+
+  // 现在的路径如果是 /category/xxx，把 selectedKey 设置为完整路径
+  const selectedKey = decodeURIComponent(location.pathname)
 
   return (
     <Sider
@@ -85,7 +98,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
       <Menu
         mode="inline"
         theme="dark"
-        selectedKeys={[location.pathname]}
+        selectedKeys={[selectedKey]}
         items={items}
         onClick={({ key }) => navigate(key)}
         style={{ background: 'transparent', borderRight: 0, paddingTop: 8 }}

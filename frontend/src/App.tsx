@@ -68,6 +68,7 @@ function AppLayout() {
         <Content style={{ padding: '24px 32px', maxWidth: 1280, margin: '0 auto', width: '100%' }}>
           <Routes>
             <Route path="/" element={<ArticlesPage />} />
+            <Route path="/category/:category" element={<ArticlesPage />} />
             <Route path="/briefing" element={<BriefingPage />} />
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/trends" element={<TrendsPage />} />

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useParams } from 'react-router-dom'
 import {
   Tag,
   Select,
@@ -22,6 +23,10 @@ import {
   StarOutlined,
   StarFilled,
   CheckOutlined,
+  AppstoreOutlined,
+  CodeOutlined,
+  DollarCircleOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons'
 import {
   getArticles,
@@ -36,7 +41,33 @@ import {
 const { Title, Text, Paragraph } = Typography
 const { Search } = Input
 
-const CATEGORIES = ['全て', '総合', 'テクノロジー', '経済・ビジネス', '国際']
+const ALL_CATEGORIES = ['総合', 'テクノロジー', '経済・ビジネス', '国際']
+
+const CATEGORY_META: Record<
+  string,
+  { icon: any; gradient: string; description: string }
+> = {
+  総合: {
+    icon: <AppstoreOutlined />,
+    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    description: '主要な日本のニュース総合一覧',
+  },
+  テクノロジー: {
+    icon: <CodeOutlined />,
+    gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    description: 'IT・テック・スタートアップ・AI 関連',
+  },
+  '経済・ビジネス': {
+    icon: <DollarCircleOutlined />,
+    gradient: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)',
+    description: '日本経済・市場・企業ニュース',
+  },
+  国際: {
+    icon: <GlobalOutlined />,
+    gradient: 'linear-gradient(135deg, #ec4899 0%, #f43f5e 100%)',
+    description: '海外情勢・国際関係（英語ソースも自動翻訳）',
+  },
+}
 
 const catClass = (cat: string) => {
   const map: Record<string, string> = {
@@ -76,10 +107,14 @@ function timeAgo(iso: string | null): string {
 const PAGE_SIZE = 20
 
 export default function ArticlesPage() {
+  const params = useParams<{ category?: string }>()
+  const fixedCategory = params.category ? decodeURIComponent(params.category) : ''
+  const meta = fixedCategory ? CATEGORY_META[fixedCategory] : null
+
   const [articles, setArticles] = useState<Article[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [category, setCategory] = useState<string>('')
+  const [category, setCategory] = useState<string>(fixedCategory)
   const [keyword, setKeyword] = useState<string>('')
   const [searchMode, setSearchMode] = useState(false)
   const [favoriteOnly, setFavoriteOnly] = useState(false)
@@ -87,13 +122,26 @@ export default function ArticlesPage() {
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
 
+  // URL の category が変わったらフィルタもページもリセット
+  useEffect(() => {
+    setCategory(fixedCategory)
+    setPage(1)
+    setSearchMode(false)
+    setKeyword('')
+    setFavoriteOnly(false)
+    setUnreadOnly(false)
+  }, [fixedCategory])
+
   const fetchArticles = useCallback(async () => {
     setLoading(true)
     try {
       if (searchMode && keyword) {
         const res = await searchArticles(keyword)
-        setArticles(res.data.articles)
-        setTotal(res.data.total)
+        const filtered = fixedCategory
+          ? res.data.articles.filter((a) => a.category === fixedCategory)
+          : res.data.articles
+        setArticles(filtered)
+        setTotal(filtered.length)
       } else {
         const params: any = { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }
         if (category) params.category = category
@@ -106,13 +154,12 @@ export default function ArticlesPage() {
     } finally {
       setLoading(false)
     }
-  }, [category, page, favoriteOnly, unreadOnly, searchMode, keyword])
+  }, [category, page, favoriteOnly, unreadOnly, searchMode, keyword, fixedCategory])
 
   useEffect(() => {
     fetchArticles()
   }, [fetchArticles])
 
-  // フィルタ変更時はページを 1 に戻す
   useEffect(() => {
     setPage(1)
   }, [category, favoriteOnly, unreadOnly])
@@ -143,9 +190,7 @@ export default function ArticlesPage() {
     try {
       await markRead(a.id)
       setArticles((arr) => arr.map((x) => (x.id === a.id ? { ...x, is_read: true } : x)))
-    } catch {
-      // silent
-    }
+    } catch {}
   }
 
   const handleCollect = async () => {
@@ -176,13 +221,37 @@ export default function ArticlesPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0, marginBottom: 4 }}>
-          <FireOutlined style={{ marginRight: 8, color: '#f59e0b' }} />
-          Articles
-        </Title>
-        <Text type="secondary">日本ニュース · 自動収集 · AI 要約</Text>
-      </div>
+      {/* ヘッダー / カテゴリ Hero */}
+      {meta ? (
+        <div
+          style={{
+            background: meta.gradient,
+            padding: '24px 28px',
+            borderRadius: 16,
+            marginBottom: 24,
+            color: '#fff',
+            position: 'relative',
+            overflow: 'hidden',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+          }}
+        >
+          <div style={{ fontSize: 56, opacity: 0.18, position: 'absolute', right: 16, top: 8 }}>
+            {meta.icon}
+          </div>
+          <Title level={2} style={{ color: '#fff', margin: 0, marginBottom: 4 }}>
+            {fixedCategory}
+          </Title>
+          <div style={{ opacity: 0.92, fontSize: 14 }}>{meta.description}</div>
+        </div>
+      ) : (
+        <div style={{ marginBottom: 24 }}>
+          <Title level={3} style={{ margin: 0, marginBottom: 4 }}>
+            <FireOutlined style={{ marginRight: 8, color: '#f59e0b' }} />
+            All Articles
+          </Title>
+          <Text type="secondary">日本ニュース · 自動収集 · AI 要約</Text>
+        </div>
+      )}
 
       {/* ツールバー */}
       <div
@@ -198,14 +267,16 @@ export default function ArticlesPage() {
           alignItems: 'center',
         }}
       >
-        <Select
-          value={category || '全て'}
-          onChange={(v) => setCategory(v === '全て' ? '' : v)}
-          options={CATEGORIES.map((c) => ({ value: c, label: c }))}
-          style={{ width: 160 }}
-        />
+        {!fixedCategory && (
+          <Select
+            value={category || '全て'}
+            onChange={(v) => setCategory(v === '全て' ? '' : v)}
+            options={['全て', ...ALL_CATEGORIES].map((c) => ({ value: c, label: c }))}
+            style={{ width: 160 }}
+          />
+        )}
         <Search
-          placeholder="全文検索（FTS5）…"
+          placeholder="全文検索…"
           allowClear
           enterButton
           onSearch={handleSearch}
@@ -253,22 +324,21 @@ export default function ArticlesPage() {
               <div
                 key={a.id}
                 className="article-card"
-                style={{
-                  padding: 20,
-                  opacity: a.is_read ? 0.65 : 1,
-                }}
+                style={{ padding: 20, opacity: a.is_read ? 0.65 : 1 }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}
                     >
-                      <Tag
-                        className={catClass(a.category)}
-                        style={{ borderRadius: 4, fontWeight: 500 }}
-                      >
-                        {a.category}
-                      </Tag>
+                      {!fixedCategory && (
+                        <Tag
+                          className={catClass(a.category)}
+                          style={{ borderRadius: 4, fontWeight: 500 }}
+                        >
+                          {a.category}
+                        </Tag>
+                      )}
                       <Tag bordered={false} color="default" style={{ borderRadius: 4 }}>
                         {a.source}
                       </Tag>
