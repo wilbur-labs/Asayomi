@@ -12,6 +12,8 @@ router = APIRouter(prefix="/api/v1/articles", tags=["articles"])
 def list_articles(
     category: Optional[str] = None,
     source: Optional[str] = None,
+    favorite_only: bool = False,
+    unread_only: bool = False,
     include_duplicates: bool = False,
     limit: int = Query(default=50, le=200),
     offset: int = 0,
@@ -24,6 +26,10 @@ def list_articles(
         q = q.filter(Article.category == category)
     if source:
         q = q.filter(Article.source == source)
+    if favorite_only:
+        q = q.filter(Article.is_favorite == True)
+    if unread_only:
+        q = q.filter(Article.is_read == False)
     total = q.count()
     articles = (
         q.order_by(Article.importance_score.desc(), Article.collected_at.desc())

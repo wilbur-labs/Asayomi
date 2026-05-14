@@ -4,6 +4,7 @@ import {
   ReadOutlined,
   FileTextOutlined,
   BarChartOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons'
 
 const { Sider } = Layout
@@ -21,6 +22,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
     { key: '/', icon: <ReadOutlined />, label: 'Articles' },
     { key: '/briefing', icon: <FileTextOutlined />, label: 'Briefing' },
     { key: '/stats', icon: <BarChartOutlined />, label: 'Stats' },
+    { key: '/sources', icon: <DatabaseOutlined />, label: 'Sources' },
   ]
 
   return (

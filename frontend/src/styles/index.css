@@ -7,6 +7,25 @@
 
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.04);
   --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.08), 0 12px 32px rgba(0, 0, 0, 0.06);
+
+  --card-bg: #ffffff;
+  --card-border: #eaecef;
+  --title-color: #1a202c;
+  --text-secondary: #6b7280;
+  --tag-bg: #f3f4f6;
+  --body-bg: #f5f7fa;
+}
+
+[data-theme='dark'] {
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.3);
+
+  --card-bg: #1a1f2e;
+  --card-border: #2a3142;
+  --title-color: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --tag-bg: #2a3142;
+  --body-bg: #0f1419;
 }
 
 * {
@@ -17,16 +36,16 @@ body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN',
     'Hiragino Sans', Meiryo, sans-serif;
-  background: #f5f7fa;
-  color: #1a202c;
+  background: var(--body-bg);
+  color: var(--title-color);
   -webkit-font-smoothing: antialiased;
+  transition: background 0.2s, color 0.2s;
 }
 
 #root {
   min-height: 100vh;
 }
 
-/* スクロールバー（控えめ） */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -35,19 +54,18 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(128, 128, 128, 0.3);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(128, 128, 128, 0.5);
 }
 
-/* ニュースカード hover 効果 */
 .article-card {
   transition: all 0.2s ease;
-  border: 1px solid #eaecef;
+  border: 1px solid var(--card-border);
   border-radius: 12px;
-  background: #fff;
+  background: var(--card-bg);
 }
 .article-card:hover {
   transform: translateY(-2px);
@@ -55,7 +73,6 @@ body {
   border-color: #c7d2fe;
 }
 
-/* ロゴテキストグラデ */
 .logo-text {
   background: linear-gradient(135deg, #a3b1ff, #c4b5fd, #f0abfc);
   -webkit-background-clip: text;
@@ -65,20 +82,23 @@ body {
   letter-spacing: -0.5px;
 }
 
-/* カテゴリタグの色付け */
 .cat-総合 { background: #e0e7ff !important; color: #4338ca !important; border-color: #c7d2fe !important; }
 .cat-テクノロジー { background: #cffafe !important; color: #0e7490 !important; border-color: #a5f3fc !important; }
 .cat-経済ビジネス { background: #fef3c7 !important; color: #92400e !important; border-color: #fde68a !important; }
 .cat-国際 { background: #fce7f3 !important; color: #9d174d !important; border-color: #fbcfe8 !important; }
 
-/* 重要度バー */
+[data-theme='dark'] .cat-総合 { background: rgba(99, 102, 241, 0.15) !important; color: #a5b4fc !important; border-color: rgba(99, 102, 241, 0.3) !important; }
+[data-theme='dark'] .cat-テクノロジー { background: rgba(6, 182, 212, 0.15) !important; color: #67e8f9 !important; border-color: rgba(6, 182, 212, 0.3) !important; }
+[data-theme='dark'] .cat-経済ビジネス { background: rgba(245, 158, 11, 0.15) !important; color: #fcd34d !important; border-color: rgba(245, 158, 11, 0.3) !important; }
+[data-theme='dark'] .cat-国際 { background: rgba(236, 72, 153, 0.15) !important; color: #f9a8d4 !important; border-color: rgba(236, 72, 153, 0.3) !important; }
+
 .score-bar {
   display: inline-block;
   width: 4px;
   height: 16px;
   border-radius: 2px;
   margin-right: 2px;
-  background: #e5e7eb;
+  background: rgba(128, 128, 128, 0.2);
 }
 .score-bar.active-1 { background: #93c5fd; }
 .score-bar.active-2 { background: #60a5fa; }
@@ -86,7 +106,6 @@ body {
 .score-bar.active-4 { background: #f59e0b; }
 .score-bar.active-5 { background: #ef4444; }
 
-/* 統計カード */
 .stat-card {
   border-radius: 16px;
   padding: 20px;
@@ -115,11 +134,10 @@ body {
   letter-spacing: -1px;
 }
 
-/* ブリーフィングカード */
 .briefing-card {
   border-radius: 14px;
-  border: 1px solid #eaecef;
-  background: #fff;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
   overflow: hidden;
 }
 .briefing-header {
@@ -133,17 +151,19 @@ body {
   white-space: pre-wrap;
   font-size: 14px;
   line-height: 1.8;
-  color: #374151;
+  color: var(--title-color);
 }
 .briefing-body a {
   color: #4f46e5;
   text-decoration: none;
 }
+[data-theme='dark'] .briefing-body a {
+  color: #818cf8;
+}
 .briefing-body a:hover {
   text-decoration: underline;
 }
 
-/* アンチャラクター調整 */
 .ant-card {
   border-radius: 12px !important;
 }

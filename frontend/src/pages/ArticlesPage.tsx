@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   Tag,
   Select,
@@ -10,6 +10,8 @@ import {
   message,
   Input,
   Tooltip,
+  Pagination,
+  Switch,
 } from 'antd'
 import {
   LinkOutlined,
@@ -17,8 +19,19 @@ import {
   ThunderboltOutlined,
   FireOutlined,
   ClockCircleOutlined,
+  StarOutlined,
+  StarFilled,
+  CheckOutlined,
 } from '@ant-design/icons'
-import { getArticles, Article, triggerCollect, triggerProcess } from '../services/api'
+import {
+  getArticles,
+  searchArticles,
+  toggleFavorite,
+  markRead,
+  Article,
+  triggerCollect,
+  triggerProcess,
+} from '../services/api'
 
 const { Title, Text, Paragraph } = Typography
 const { Search } = Input
@@ -60,38 +73,80 @@ function timeAgo(iso: string | null): string {
   return `${days}日前`
 }
 
+const PAGE_SIZE = 20
+
 export default function ArticlesPage() {
   const [articles, setArticles] = useState<Article[]>([])
   const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [category, setCategory] = useState<string>('')
   const [keyword, setKeyword] = useState<string>('')
+  const [searchMode, setSearchMode] = useState(false)
+  const [favoriteOnly, setFavoriteOnly] = useState(false)
+  const [unreadOnly, setUnreadOnly] = useState(false)
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
 
-  const fetchArticles = async () => {
+  const fetchArticles = useCallback(async () => {
     setLoading(true)
     try {
-      const params: any = { limit: 50 }
-      if (category) params.category = category
-      const res = await getArticles(params)
-      setArticles(res.data.articles)
-      setTotal(res.data.total)
+      if (searchMode && keyword) {
+        const res = await searchArticles(keyword)
+        setArticles(res.data.articles)
+        setTotal(res.data.total)
+      } else {
+        const params: any = { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }
+        if (category) params.category = category
+        if (favoriteOnly) params.favorite_only = true
+        if (unreadOnly) params.unread_only = true
+        const res = await getArticles(params)
+        setArticles(res.data.articles)
+        setTotal(res.data.total)
+      }
     } finally {
       setLoading(false)
     }
-  }
+  }, [category, page, favoriteOnly, unreadOnly, searchMode, keyword])
 
   useEffect(() => {
     fetchArticles()
-  }, [category])
+  }, [fetchArticles])
 
-  const filtered = keyword
-    ? articles.filter(
-        (a) =>
-          a.title.toLowerCase().includes(keyword.toLowerCase()) ||
-          (a.summary || '').toLowerCase().includes(keyword.toLowerCase())
+  // フィルタ変更時はページを 1 に戻す
+  useEffect(() => {
+    setPage(1)
+  }, [category, favoriteOnly, unreadOnly])
+
+  const handleSearch = (q: string) => {
+    if (q.trim()) {
+      setSearchMode(true)
+      setKeyword(q)
+    } else {
+      setSearchMode(false)
+      setKeyword('')
+    }
+  }
+
+  const handleFavorite = async (a: Article) => {
+    try {
+      const res = await toggleFavorite(a.id)
+      setArticles((arr) =>
+        arr.map((x) => (x.id === a.id ? { ...x, is_favorite: res.data.is_favorite } : x))
       )
-    : articles
+    } catch {
+      message.error('操作に失敗しました')
+    }
+  }
+
+  const handleRead = async (a: Article) => {
+    if (a.is_read) return
+    try {
+      await markRead(a.id)
+      setArticles((arr) => arr.map((x) => (x.id === a.id ? { ...x, is_read: true } : x)))
+    } catch {
+      // silent
+    }
+  }
 
   const handleCollect = async () => {
     setActionLoading(true)
@@ -121,19 +176,18 @@ export default function ArticlesPage() {
 
   return (
     <div>
-      {/* ヘッダー */}
       <div style={{ marginBottom: 24 }}>
         <Title level={3} style={{ margin: 0, marginBottom: 4 }}>
           <FireOutlined style={{ marginRight: 8, color: '#f59e0b' }} />
-          ニュース一覧
+          Articles
         </Title>
-        <Text type="secondary">日本の主要ニュースサイトから最新記事を自動収集</Text>
+        <Text type="secondary">日本ニュース · 自動収集 · AI 要約</Text>
       </div>
 
       {/* ツールバー */}
       <div
         style={{
-          background: '#fff',
+          background: 'var(--card-bg, #fff)',
           padding: 16,
           borderRadius: 12,
           marginBottom: 16,
@@ -151,20 +205,33 @@ export default function ArticlesPage() {
           style={{ width: 160 }}
         />
         <Search
-          placeholder="キーワード検索…"
+          placeholder="全文検索（FTS5）…"
           allowClear
-          onChange={(e) => setKeyword(e.target.value)}
+          enterButton
+          onSearch={handleSearch}
           style={{ flex: 1, minWidth: 200, maxWidth: 360 }}
         />
+        <Space>
+          <Switch
+            size="small"
+            checked={favoriteOnly}
+            onChange={setFavoriteOnly}
+            checkedChildren={<StarFilled />}
+            unCheckedChildren={<StarOutlined />}
+          />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            お気に入りのみ
+          </Text>
+        </Space>
+        <Space>
+          <Switch size="small" checked={unreadOnly} onChange={setUnreadOnly} />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            未読のみ
+          </Text>
+        </Space>
         <div style={{ flex: 1 }} />
-        <Text type="secondary" style={{ marginRight: 8 }}>
-          {filtered.length} / {total} 件
-        </Text>
-        <Button
-          icon={<ReloadOutlined />}
-          loading={actionLoading}
-          onClick={handleCollect}
-        >
+        <Text type="secondary">{total} 件</Text>
+        <Button icon={<ReloadOutlined />} loading={actionLoading} onClick={handleCollect}>
           収集
         </Button>
         <Button
@@ -177,18 +244,29 @@ export default function ArticlesPage() {
         </Button>
       </div>
 
-      {/* 記事リスト */}
       <Spin spinning={loading}>
-        {filtered.length === 0 ? (
+        {articles.length === 0 ? (
           <Empty description="記事がありません" style={{ marginTop: 80 }} />
         ) : (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
-            {filtered.map((a) => (
-              <div key={a.id} className="article-card" style={{ padding: 20 }}>
+            {articles.map((a) => (
+              <div
+                key={a.id}
+                className="article-card"
+                style={{
+                  padding: 20,
+                  opacity: a.is_read ? 0.65 : 1,
+                }}
+              >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <Tag className={catClass(a.category)} style={{ borderRadius: 4, fontWeight: 500 }}>
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}
+                    >
+                      <Tag
+                        className={catClass(a.category)}
+                        style={{ borderRadius: 4, fontWeight: 500 }}
+                      >
                         {a.category}
                       </Tag>
                       <Tag bordered={false} color="default" style={{ borderRadius: 4 }}>
@@ -197,6 +275,11 @@ export default function ArticlesPage() {
                       {a.language === 'en' && (
                         <Tag color="purple" bordered={false} style={{ borderRadius: 4 }}>
                           EN→JA
+                        </Tag>
+                      )}
+                      {a.is_read && (
+                        <Tag color="default" bordered={false} icon={<CheckOutlined />}>
+                          既読
                         </Tag>
                       )}
                       <Text type="secondary" style={{ fontSize: 12 }}>
@@ -213,25 +296,33 @@ export default function ArticlesPage() {
                       href={a.url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => handleRead(a)}
                       style={{
                         fontSize: 16,
                         fontWeight: 600,
-                        color: '#1a202c',
+                        color: 'var(--title-color, #1a202c)',
                         textDecoration: 'none',
                         lineHeight: 1.5,
                         display: 'block',
                         marginBottom: 6,
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = '#4f46e5')}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = '#1a202c')}
                     >
                       {a.title}
                       <LinkOutlined style={{ marginLeft: 6, fontSize: 12, opacity: 0.5 }} />
                     </a>
+                    {a.original_title && a.language === 'en' && a.original_title !== a.title && (
+                      <Text
+                        type="secondary"
+                        italic
+                        style={{ fontSize: 12, display: 'block', marginBottom: 6 }}
+                      >
+                        原題: {a.original_title}
+                      </Text>
+                    )}
                     {a.summary && (
                       <Paragraph
                         ellipsis={{ rows: 2 }}
-                        style={{ color: '#6b7280', marginBottom: 8, fontSize: 13 }}
+                        style={{ color: 'var(--text-secondary, #6b7280)', marginBottom: 8, fontSize: 13 }}
                       >
                         {a.summary}
                       </Paragraph>
@@ -239,17 +330,44 @@ export default function ArticlesPage() {
                     {a.tags.length > 0 && (
                       <Space size={4} wrap>
                         {a.tags.map((t) => (
-                          <Tag key={t} bordered={false} style={{ background: '#f3f4f6', color: '#6b7280' }}>
+                          <Tag
+                            key={t}
+                            bordered={false}
+                            style={{ background: 'var(--tag-bg, #f3f4f6)', color: 'var(--text-secondary, #6b7280)' }}
+                          >
                             #{t}
                           </Tag>
                         ))}
                       </Space>
                     )}
                   </div>
+                  <Button
+                    type="text"
+                    icon={
+                      a.is_favorite ? (
+                        <StarFilled style={{ color: '#f59e0b' }} />
+                      ) : (
+                        <StarOutlined />
+                      )
+                    }
+                    onClick={() => handleFavorite(a)}
+                  />
                 </div>
               </div>
             ))}
           </Space>
+        )}
+
+        {!searchMode && total > PAGE_SIZE && (
+          <div style={{ marginTop: 24, textAlign: 'center' }}>
+            <Pagination
+              current={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              onChange={setPage}
+              showSizeChanger={false}
+            />
+          </div>
         )}
       </Spin>
     </div>
