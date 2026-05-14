@@ -5,3 +5,4 @@ from .system import router as system_router
 from .user_actions import router as user_actions_router
 from .search import router as search_router
 from .sources import router as sources_router
+from .feed import router as feed_router

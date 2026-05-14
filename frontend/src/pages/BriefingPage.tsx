@@ -1,11 +1,34 @@
 import { useEffect, useState } from 'react'
-import { DatePicker, Empty, Spin, Typography, Row, Col, Button, message } from 'antd'
-import { FileTextOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import {
+  DatePicker,
+  Empty,
+  Spin,
+  Typography,
+  Row,
+  Col,
+  Button,
+  message,
+  Segmented,
+  Tooltip,
+} from 'antd'
+import {
+  FileTextOutlined,
+  ThunderboltOutlined,
+  MailOutlined,
+  ExportOutlined,
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
-import axios from 'axios'
-import { getBriefings } from '../services/api'
+import {
+  getBriefings,
+  triggerBriefing,
+  triggerWeekly,
+  triggerMonthly,
+  triggerNotify,
+} from '../services/api'
 
 const { Title, Text } = Typography
+
+type Mode = 'daily' | 'weekly' | 'monthly'
 
 const CATEGORY_GRADIENT: Record<string, string> = {
   総合: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -15,44 +38,67 @@ const CATEGORY_GRADIENT: Record<string, string> = {
 }
 
 function renderBriefingBody(content: string) {
-  // markdown 風のテキストを軽く HTML に
   const html = content
-    .replace(/^## .+$/gm, '') // タイトル削除（カテゴリヘッダで表示してるため）
+    .replace(/^## .+$/gm, '')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(
-      /(https?:\/\/[^\s)]+)/g,
-      '<a href="$1" target="_blank" rel="noopener">$1</a>'
-    )
+    .replace(/(https?:\/\/[^\s)]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')
   return { __html: html }
 }
 
 export default function BriefingPage() {
+  const [mode, setMode] = useState<Mode>('daily')
   const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'))
+  const [month, setMonth] = useState(dayjs().format('YYYY-MM'))
   const [briefings, setBriefings] = useState<{ category: string; content: string }[]>([])
   const [loading, setLoading] = useState(false)
-  const [generating, setGenerating] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const targetLabel = () => {
+    if (mode === 'daily') return date
+    if (mode === 'weekly') return `weekly-${date}`
+    return `monthly-${month}`
+  }
 
   const fetchBriefings = () => {
     setLoading(true)
-    getBriefings(date)
+    getBriefings(targetLabel())
       .then((res) => setBriefings(res.data.briefings))
       .finally(() => setLoading(false))
   }
 
   useEffect(() => {
     fetchBriefings()
-  }, [date])
+  }, [mode, date, month])
 
   const handleGenerate = async () => {
-    setGenerating(true)
+    setBusy(true)
     try {
-      const res = await axios.post('/api/v1/system/briefing')
+      const res =
+        mode === 'daily'
+          ? await triggerBriefing()
+          : mode === 'weekly'
+            ? await triggerWeekly()
+            : await triggerMonthly()
       message.success(res.data.message)
       fetchBriefings()
     } catch {
       message.error('生成に失敗しました')
     } finally {
-      setGenerating(false)
+      setBusy(false)
+    }
+  }
+
+  const handleNotify = async () => {
+    setBusy(true)
+    try {
+      const res = await triggerNotify()
+      const ch = res.data?.channels || {}
+      const ok = Object.values(ch).filter(Boolean).length
+      message.success(`通知送信: ${ok} チャンネル成功`)
+    } catch {
+      message.error('通知に失敗しました')
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -61,42 +107,68 @@ export default function BriefingPage() {
       <div style={{ marginBottom: 24 }}>
         <Title level={3} style={{ margin: 0, marginBottom: 4 }}>
           <FileTextOutlined style={{ marginRight: 8, color: '#4f46e5' }} />
-          今日のブリーフィング
+          Briefing
         </Title>
-        <Text type="secondary">カテゴリ別のトップニュース要約</Text>
+        <Text type="secondary">日次・週次・月次のカテゴリ別まとめ</Text>
       </div>
 
       <div
         style={{
-          background: '#fff',
+          background: 'var(--card-bg, #fff)',
           padding: 16,
           borderRadius: 12,
           marginBottom: 16,
           boxShadow: 'var(--shadow-card)',
           display: 'flex',
+          flexWrap: 'wrap',
           gap: 12,
           alignItems: 'center',
         }}
       >
-        <DatePicker
-          value={dayjs(date)}
-          onChange={(d) => d && setDate(d.format('YYYY-MM-DD'))}
+        <Segmented
+          value={mode}
+          onChange={(v) => setMode(v as Mode)}
+          options={[
+            { label: 'Daily', value: 'daily' },
+            { label: 'Weekly', value: 'weekly' },
+            { label: 'Monthly', value: 'monthly' },
+          ]}
         />
+        {mode !== 'monthly' ? (
+          <DatePicker
+            value={dayjs(date)}
+            onChange={(d) => d && setDate(d.format('YYYY-MM-DD'))}
+          />
+        ) : (
+          <DatePicker
+            picker="month"
+            value={dayjs(month)}
+            onChange={(d) => d && setMonth(d.format('YYYY-MM'))}
+          />
+        )}
         <div style={{ flex: 1 }} />
+        <Tooltip title="RSS フィード（XML）を新しいタブで開く">
+          <Button icon={<ExportOutlined />} onClick={() => window.open('/api/v1/feed/rss.xml', '_blank')}>
+            RSS
+          </Button>
+        </Tooltip>
+        <Button icon={<MailOutlined />} loading={busy} onClick={handleNotify}>
+          通知送信
+        </Button>
         <Button
           type="primary"
           icon={<ThunderboltOutlined />}
-          loading={generating}
+          loading={busy}
           onClick={handleGenerate}
         >
-          ブリーフィング生成
+          生成
         </Button>
       </div>
 
       <Spin spinning={loading}>
         {briefings.length === 0 ? (
           <Empty
-            description="この日のブリーフィングはまだありません"
+            description="この期間のブリーフィングはまだありません"
             style={{ marginTop: 80 }}
           />
         ) : (

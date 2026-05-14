@@ -26,8 +26,23 @@ def job_collect_and_process():
     logger.info("===== 定期タスク完了 =====")
 
 
+def job_daily_notify():
+    """毎朝 6:00 に通知送信"""
+    from .notify import send_daily_briefing_notifications
+    send_daily_briefing_notifications()
+
+
+def job_weekly():
+    from .briefing import generate_weekly_briefing
+    generate_weekly_briefing()
+
+
+def job_monthly():
+    from .briefing import generate_monthly_briefing
+    generate_monthly_briefing()
+
+
 def job_cleanup():
-    """古いデータを削除（お気に入り除外）"""
     db = SessionLocal()
     try:
         cutoff = datetime.now(timezone.utc) - timedelta(days=settings.data_retention_days)
@@ -52,6 +67,9 @@ def start_scheduler():
         hours=settings.collection_interval_hours,
         id="collect",
     )
+    scheduler.add_job(job_daily_notify, "cron", hour=6, minute=0, id="daily_notify")
+    scheduler.add_job(job_weekly, "cron", day_of_week="mon", hour=7, minute=0, id="weekly")
+    scheduler.add_job(job_monthly, "cron", day=1, hour=7, minute=30, id="monthly")
     scheduler.add_job(job_cleanup, "cron", hour=3, minute=0, id="cleanup")
     scheduler.start()
     logger.info(f"スケジューラ起動（収集間隔: {settings.collection_interval_hours}時間）")

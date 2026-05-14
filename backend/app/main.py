@@ -14,6 +14,7 @@ from .api import (
     user_actions_router,
     search_router,
     sources_router,
+    feed_router,
 )
 from .services.scheduler import start_scheduler, stop_scheduler
 from .services.search import init_fts5
@@ -41,6 +42,7 @@ app.include_router(system_router)
 app.include_router(user_actions_router)
 app.include_router(search_router)
 app.include_router(sources_router)
+app.include_router(feed_router)
 
 
 @app.on_event("startup")
