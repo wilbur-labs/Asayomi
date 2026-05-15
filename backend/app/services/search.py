@@ -4,6 +4,7 @@ import re
 from sqlalchemy import text, or_
 from ..core.database import engine, SessionLocal
 from ..models.article import Article
+from ..utils.tags import parse_tags
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,16 @@ def init_fts5() -> None:
         except Exception as e:
             logger.warning(f"FTS5 利用不可: {e}")
             return
-        conn.execute(text("INSERT INTO articles_fts(articles_fts) VALUES('rebuild')"))
+
+        # Triggers maintain the index incrementally, so a full `rebuild` only
+        # makes sense for an initial sync — when articles_fts is empty but
+        # articles is not. Doing this unconditionally on every startup made
+        # boot time grow linearly with row count.
+        fts_count = conn.execute(text("SELECT count(*) FROM articles_fts")).scalar() or 0
+        art_count = conn.execute(text("SELECT count(*) FROM articles")).scalar() or 0
+        if fts_count == 0 and art_count > 0:
+            conn.execute(text("INSERT INTO articles_fts(articles_fts) VALUES('rebuild')"))
+            logger.info(f"FTS5 初期同期: {art_count} 件 → articles_fts")
         for trig_sql in [
             """CREATE TRIGGER IF NOT EXISTS articles_ai AFTER INSERT ON articles BEGIN
               INSERT INTO articles_fts(rowid, title, summary, tags, source)
@@ -49,7 +59,7 @@ def _serialize(a: Article) -> dict:
         "id": a.id, "title": a.title, "url": a.url, "source": a.source,
         "category": a.category, "summary": a.summary, "language": a.language,
         "importance_score": a.importance_score,
-        "tags": a.tags.split(",") if a.tags else [],
+        "tags": parse_tags(a.tags),
         "published_at": a.published_at.isoformat() if a.published_at else None,
         "collected_at": a.collected_at.isoformat() if a.collected_at else None,
         "is_favorite": a.is_favorite, "is_read": a.is_read,

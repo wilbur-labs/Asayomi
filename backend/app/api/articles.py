@@ -4,6 +4,7 @@ from typing import Optional
 
 from ..core.database import get_db
 from ..models.article import Article
+from ..utils.tags import parse_tags
 
 router = APIRouter(prefix="/api/v1/articles", tags=["articles"])
 
@@ -59,7 +60,7 @@ def _serialize(a: Article, include_full: bool = False) -> dict:
         "category": a.category,
         "summary": a.summary,
         "importance_score": a.importance_score,
-        "tags": a.tags.split(",") if a.tags else [],
+        "tags": parse_tags(a.tags),
         "published_at": a.published_at.isoformat() if a.published_at else None,
         "collected_at": a.collected_at.isoformat() if a.collected_at else None,
         "is_favorite": a.is_favorite,

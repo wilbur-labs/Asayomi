@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from ..core.config import settings
 from ..core.database import SessionLocal
 from ..models.article import Article
+from ..utils.tags import normalize_tag_string
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ def process_article(client: AzureOpenAI, article: Article) -> bool:
         article.summary = result.get("summary", "")
         article.category = result.get("category", article.category)
         article.importance_score = float(result.get("score", 5))
-        article.tags = result.get("tags", "")
+        article.tags = normalize_tag_string(result.get("tags", ""))
         article.processed = True
         return True
     except Exception as e:
