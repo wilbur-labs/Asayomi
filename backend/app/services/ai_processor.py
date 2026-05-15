@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from ..core.config import settings
 from ..core.database import SessionLocal
 from ..models.article import Article
+from .usage import record_usage
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +49,17 @@ def _build_user_content(article: Article) -> str:
 
 
 def process_article(client: AzureOpenAI, article: Article) -> bool:
-    """1記事をAI処理。英語記事は日本語に翻訳。"""
+    """1記事をAI処理。英語記事は日本語に翻訳。
+
+    成功時に True を返し、article のフィールド (summary/category/score/tags/
+    processed; EN記事なら title も) を更新する。失敗時は False を返し、
+    article は未更新のまま残る。
+    """
     is_english = article.language == "en"
     system_prompt = SYSTEM_PROMPT_EN if is_english else SYSTEM_PROMPT_JA
+    title_for_log = (article.title or "")[:30]
 
+    # 1. OpenAI 呼び出し
     try:
         response = client.chat.completions.create(
             model=settings.azure_openai_deployment_name,
@@ -63,31 +71,40 @@ def process_article(client: AzureOpenAI, article: Article) -> bool:
             max_tokens=400,
             response_format={"type": "json_object"},
         )
-        # 用量記録
-        try:
-            from .usage import record_usage
-            usage = response.usage
-            if usage:
-                record_usage(
-                    operation="translate" if is_english else "summarize",
-                    model=settings.azure_openai_deployment_name,
-                    prompt_tokens=usage.prompt_tokens,
-                    completion_tokens=usage.completion_tokens,
-                )
-        except Exception:
-            pass
-        result = json.loads(response.choices[0].message.content)
-        if is_english and result.get("translated_title"):
-            article.title = result["translated_title"]  # 表示用を翻訳後に更新
-        article.summary = result.get("summary", "")
-        article.category = result.get("category", article.category)
-        article.importance_score = float(result.get("score", 5))
-        article.tags = result.get("tags", "")
-        article.processed = True
-        return True
     except Exception as e:
-        logger.error(f"AI処理エラー [{article.title[:30]}]: {e}")
+        logger.error(f"AI処理: OpenAI 呼出失敗 [{title_for_log}]: {e}")
         return False
+
+    # 2. JSON パース
+    try:
+        result = json.loads(response.choices[0].message.content)
+    except (json.JSONDecodeError, AttributeError, IndexError, TypeError) as e:
+        logger.error(f"AI処理: JSON 解析失敗 [{title_for_log}]: {e}")
+        return False
+
+    # 3. フィールド適用
+    if is_english and result.get("translated_title"):
+        article.title = result["translated_title"]
+    article.summary = result.get("summary", "")
+    article.category = result.get("category", article.category)
+    article.importance_score = float(result.get("score", 5))
+    article.tags = result.get("tags", "")
+    article.processed = True
+
+    # 4. 用量記録 — 失敗は warn ログに留め、本処理の成否には影響させない
+    usage = getattr(response, "usage", None)
+    if usage:
+        try:
+            record_usage(
+                operation="translate" if is_english else "summarize",
+                model=settings.azure_openai_deployment_name,
+                prompt_tokens=usage.prompt_tokens,
+                completion_tokens=usage.completion_tokens,
+            )
+        except Exception as e:
+            logger.warning(f"用量記録失敗 [{title_for_log}]: {e}")
+
+    return True
 
 
 def process_unprocessed(limit: int = 20) -> int:
