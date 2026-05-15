@@ -41,9 +41,14 @@ def _gather_recent(limit: int = 25) -> List[Article]:
 def _format_context(articles: List[Article]) -> str:
     lines = []
     for i, a in enumerate(articles, 1):
+        # Python operator precedence trap: `A or B if C else D` parses as
+        # `(A or B) if C else D`, which would drop summary when
+        # original_content is None. Parenthesize the conditional so summary
+        # is always preferred when present.
+        snippet = a.summary or (a.original_content[:120] if a.original_content else "")
         lines.append(
             f"[{i}] ({a.category}) {a.title}\n"
-            f"   要約: {a.summary or a.original_content[:120] if a.original_content else ''}\n"
+            f"   要約: {snippet}\n"
             f"   URL: {a.url}"
         )
     return "\n".join(lines)
