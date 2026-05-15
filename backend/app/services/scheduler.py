@@ -7,17 +7,21 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from ..core.config import settings
 from ..core.database import SessionLocal
 from ..models.article import Article
+from .ai_processor import process_unprocessed
+from .briefing import (
+    generate_briefing,
+    generate_monthly_briefing,
+    generate_weekly_briefing,
+)
+from .data_collector import collect_all
+from .dedupe import detect_duplicates
+from .notify import send_daily_briefing_notifications
 
 logger = logging.getLogger(__name__)
 
 
 def job_collect_and_process():
     """定期収集 → 重複検知 → AI処理 → ブリーフィング"""
-    from .data_collector import collect_all
-    from .dedupe import detect_duplicates
-    from .ai_processor import process_unprocessed
-    from .briefing import generate_briefing
-
     logger.info("===== 定期タスク開始 =====")
     collect_all(fetch_fulltext=True)
     detect_duplicates()
@@ -28,17 +32,14 @@ def job_collect_and_process():
 
 def job_daily_notify():
     """毎朝 6:00 に通知送信"""
-    from .notify import send_daily_briefing_notifications
     send_daily_briefing_notifications()
 
 
 def job_weekly():
-    from .briefing import generate_weekly_briefing
     generate_weekly_briefing()
 
 
 def job_monthly():
-    from .briefing import generate_monthly_briefing
     generate_monthly_briefing()
 
 

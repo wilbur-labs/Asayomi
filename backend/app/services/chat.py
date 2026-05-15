@@ -10,6 +10,7 @@ from ..core.config import settings
 from ..core.database import SessionLocal
 from ..models.article import Article
 from .ai_processor import get_client
+from .usage import record_usage
 
 logger = logging.getLogger(__name__)
 
@@ -70,14 +71,18 @@ def chat(question: str) -> dict:
             temperature=0.4,
             max_tokens=600,
         )
-        # 用量記録
-        try:
-            from .usage import record_usage
-            u = resp.usage
-            if u:
-                record_usage("chat", settings.azure_openai_deployment_name, u.prompt_tokens, u.completion_tokens)
-        except Exception:
-            pass
+        # 用量記録 — 失敗は warn ログに留め、回答自体は返す
+        u = getattr(resp, "usage", None)
+        if u:
+            try:
+                record_usage(
+                    "chat",
+                    settings.azure_openai_deployment_name,
+                    u.prompt_tokens,
+                    u.completion_tokens,
+                )
+            except Exception as e:
+                logger.warning(f"chat 用量記録失敗: {e}")
 
         answer = resp.choices[0].message.content
         return {
