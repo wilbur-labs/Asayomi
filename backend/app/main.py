@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -22,10 +24,20 @@ from .services.search import init_fts5
 
 Base.metadata.create_all(bind=engine)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_fts5()
+    start_scheduler()
+    yield
+    stop_scheduler()
+
+
 app = FastAPI(
     title="Asayomi API",
     description="Asayomi - Japan News Briefing System",
     version="0.2.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -45,17 +57,6 @@ app.include_router(search_router)
 app.include_router(sources_router)
 app.include_router(feed_router)
 app.include_router(analytics_router)
-
-
-@app.on_event("startup")
-async def startup():
-    init_fts5()
-    start_scheduler()
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    stop_scheduler()
 
 
 @app.get("/")
