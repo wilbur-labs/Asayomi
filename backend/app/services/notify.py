@@ -1,9 +1,11 @@
 """通知サービス：メール / Webhook / Slack / Discord"""
-import logging
-import smtplib
 import json
+import logging
+import re
+import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from html import escape as html_escape
 from typing import Optional
 
 import httpx
@@ -77,6 +79,20 @@ def send_discord(content: str, url: Optional[str] = None) -> bool:
     return send_webhook({"content": content[:2000]}, url=target)
 
 
+_BOLD_PATTERN = re.compile(r"\*\*(.+?)\*\*")
+_URL_PATTERN = re.compile(r"(https?://[^\s<]+)")
+
+
+def _render_markdown_lite(content: str) -> str:
+    # Briefing content interleaves RSS titles and AI-generated summaries —
+    # escape first, then re-introduce only the markdown-lite features used
+    # by briefing._build_lines (**bold**, bare URLs, newlines).
+    safe = html_escape(content)
+    safe = _BOLD_PATTERN.sub(r"<b>\1</b>", safe)
+    safe = _URL_PATTERN.sub(r'<a href="\1">\1</a>', safe)
+    return safe.replace("\n", "<br>")
+
+
 def render_briefing_html(date_str: str) -> Optional[str]:
     """指定日のブリーフィングを HTML メール本文に整形"""
     db = SessionLocal()
@@ -86,15 +102,17 @@ def render_briefing_html(date_str: str) -> Optional[str]:
             return None
         body = [
             "<html><body style='font-family:sans-serif;max-width:680px;margin:auto;'>",
-            f"<h1 style='color:#4f46e5;'>📰 Asayomi · {date_str}</h1>",
+            f"<h1 style='color:#4f46e5;'>📰 Asayomi · {html_escape(date_str)}</h1>",
         ]
         for b in briefings:
-            body.append(f"<h2 style='border-bottom:2px solid #c7d2fe;padding-bottom:6px;'>{b.category}</h2>")
-            html_content = (
-                b.content.replace("\n", "<br>")
-                .replace("**", "<b>", 1)
+            body.append(
+                f"<h2 style='border-bottom:2px solid #c7d2fe;padding-bottom:6px;'>"
+                f"{html_escape(b.category)}</h2>"
             )
-            body.append(f"<div style='line-height:1.8;color:#374151;'>{html_content}</div>")
+            body.append(
+                f"<div style='line-height:1.8;color:#374151;'>"
+                f"{_render_markdown_lite(b.content)}</div>"
+            )
         body.append("<hr><p style='color:#9ca3af;font-size:12px;'>Asayomi · Japan News Briefing</p>")
         body.append("</body></html>")
         return "".join(body)
