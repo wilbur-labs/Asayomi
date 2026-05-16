@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..core.database import SessionLocal
 from ..models.article import Article
-from .sources import RSS_SOURCES
+from ..models.source import Source
 from .fulltext import fetch_full_text
 
 logger = logging.getLogger(__name__)
@@ -20,12 +20,12 @@ def parse_published(entry) -> datetime | None:
     return None
 
 
-def collect_from_source(db: Session, source: dict, fetch_fulltext: bool = False) -> int:
+def collect_from_source(db: Session, source: Source, fetch_fulltext: bool = False) -> int:
     """1つのRSSソースからデータを収集"""
-    if not source.get("enabled", True):
+    if not source.enabled:
         return 0
     try:
-        feed = feedparser.parse(source["url"])
+        feed = feedparser.parse(source.url)
         count = 0
         for entry in feed.entries[:30]:
             url = entry.get("link", "")
@@ -43,9 +43,9 @@ def collect_from_source(db: Session, source: dict, fetch_fulltext: bool = False)
                 title=title,
                 original_title=title,
                 url=url,
-                source=source["name"],
-                category=source["category"],
-                language=source.get("language", "ja"),
+                source=source.name,
+                category=source.category,
+                language=source.language,
                 original_content=entry.get("summary", ""),
                 full_content=full_text,
                 published_at=parse_published(entry),
@@ -54,22 +54,23 @@ def collect_from_source(db: Session, source: dict, fetch_fulltext: bool = False)
             db.add(article)
             count += 1
         db.commit()
-        logger.info(f"[{source['name']}] {count} 件収集")
+        logger.info(f"[{source.name}] {count} 件収集")
         return count
     except Exception as e:
-        logger.error(f"[{source['name']}] 収集エラー: {e}")
+        logger.error(f"[{source.name}] 収集エラー: {e}")
         db.rollback()
         return 0
 
 
 def collect_all(fetch_fulltext: bool = True) -> int:
-    """全ソースからデータを収集"""
+    """全ソースからデータを収集（DB の sources テーブルを参照）"""
     db = SessionLocal()
     total = 0
     try:
-        for source in RSS_SOURCES:
+        sources = db.query(Source).filter(Source.enabled == True).all()
+        for source in sources:
             total += collect_from_source(db, source, fetch_fulltext=fetch_fulltext)
-        logger.info(f"収集完了: 合計 {total} 件")
+        logger.info(f"収集完了: 合計 {total} 件 ({len(sources)} ソース)")
     finally:
         db.close()
     return total

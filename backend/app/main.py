@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -5,7 +7,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from .core.config import settings
-from .core.database import engine, Base
+from .core.database import SessionLocal, engine, Base
+from .services.sources import seed_sources_if_empty
 from .api import (
     articles_router,
     briefings_router,
@@ -47,9 +50,21 @@ app.include_router(feed_router)
 app.include_router(analytics_router)
 
 
+logger = logging.getLogger(__name__)
+
+
 @app.on_event("startup")
 async def startup():
     init_fts5()
+    # Seed default RSS sources on first boot. No-op once the table has
+    # any row, so it doesn't trample user edits across restarts.
+    db = SessionLocal()
+    try:
+        added = seed_sources_if_empty(db)
+        if added:
+            logger.info(f"sources テーブルにデフォルト {added} 件を投入")
+    finally:
+        db.close()
     start_scheduler()
 
 
