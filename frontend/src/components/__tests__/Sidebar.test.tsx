@@ -4,27 +4,25 @@ import { describe, it, expect } from 'vitest'
 import Sidebar from '../Sidebar'
 
 describe('Sidebar', () => {
-  it('renders all top-level nav entries', () => {
+  it('renders all top-level nav entries in Japanese', () => {
     render(
       <MemoryRouter>
         <Sidebar collapsed={false} />
       </MemoryRouter>
     )
-    // Spot-check the labels we know should appear; locks in nav presence
-    // ahead of any layout refactor.
-    expect(screen.getByText('All Articles')).toBeInTheDocument()
-    expect(screen.getByText('Briefing')).toBeInTheDocument()
-    expect(screen.getByText('Chat')).toBeInTheDocument()
-    expect(screen.getByText('Sources')).toBeInTheDocument()
+    expect(screen.getByText('記事一覧')).toBeInTheDocument()
+    expect(screen.getByText('ブリーフィング')).toBeInTheDocument()
+    expect(screen.getByText('AI チャット')).toBeInTheDocument()
+    expect(screen.getByText('ソース管理')).toBeInTheDocument()
   })
 
-  it('renders category entries', () => {
+  it('does NOT render per-category nav entries (tag filter on ArticlesPage now)', () => {
     render(
       <MemoryRouter>
         <Sidebar collapsed={false} />
       </MemoryRouter>
     )
-    expect(screen.getByText('テクノロジー')).toBeInTheDocument()
-    expect(screen.getByText('経済・ビジネス')).toBeInTheDocument()
+    expect(screen.queryByText('テクノロジー')).not.toBeInTheDocument()
+    expect(screen.queryByText('経済・ビジネス')).not.toBeInTheDocument()
   })
 })

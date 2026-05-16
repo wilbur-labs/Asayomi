@@ -50,7 +50,7 @@ export default function ChatPage() {
       <div style={{ marginBottom: 24 }}>
         <Title level={3} style={{ margin: 0, marginBottom: 4 }}>
           <MessageOutlined style={{ marginRight: 8, color: '#8b5cf6' }} />
-          AI Chat
+          AI チャット
         </Title>
         <Text type="secondary">直近のニュースを文脈にした AI アシスタント</Text>
       </div>

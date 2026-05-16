@@ -107,7 +107,7 @@ export default function BriefingPage() {
       <div style={{ marginBottom: 24 }}>
         <Title level={3} style={{ margin: 0, marginBottom: 4 }}>
           <FileTextOutlined style={{ marginRight: 8, color: '#4f46e5' }} />
-          Briefing
+          ブリーフィング
         </Title>
         <Text type="secondary">日次・週次・月次のカテゴリ別まとめ</Text>
       </div>
@@ -129,9 +129,9 @@ export default function BriefingPage() {
           value={mode}
           onChange={(v) => setMode(v as Mode)}
           options={[
-            { label: 'Daily', value: 'daily' },
-            { label: 'Weekly', value: 'weekly' },
-            { label: 'Monthly', value: 'monthly' },
+            { label: '日次', value: 'daily' },
+            { label: '週次', value: 'weekly' },
+            { label: '月次', value: 'monthly' },
           ]}
         />
         {mode !== 'monthly' ? (

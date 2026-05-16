@@ -7,10 +7,6 @@ import {
   DatabaseOutlined,
   MessageOutlined,
   LineChartOutlined,
-  AppstoreOutlined,
-  CodeOutlined,
-  DollarCircleOutlined,
-  GlobalOutlined,
 } from '@ant-design/icons'
 
 const { Sider } = Layout
@@ -24,22 +20,16 @@ export default function Sidebar({ collapsed }: SidebarProps) {
   const navigate = useNavigate()
   const location = useLocation()
 
+  // カテゴリ別のサブメニューは廃止。記事ページ内のフィルタタグで切替える。
   const items = [
-    { key: '/', icon: <HomeOutlined />, label: 'All Articles' },
-    { type: 'divider' as const },
-    { key: '/category/総合', icon: <AppstoreOutlined />, label: '総合' },
-    { key: '/category/テクノロジー', icon: <CodeOutlined />, label: 'テクノロジー' },
-    { key: '/category/経済・ビジネス', icon: <DollarCircleOutlined />, label: '経済・ビジネス' },
-    { key: '/category/国際', icon: <GlobalOutlined />, label: '国際' },
-    { type: 'divider' as const },
-    { key: '/briefing', icon: <FileTextOutlined />, label: 'Briefing' },
-    { key: '/chat', icon: <MessageOutlined />, label: 'Chat' },
-    { key: '/trends', icon: <LineChartOutlined />, label: 'Trends' },
-    { key: '/stats', icon: <BarChartOutlined />, label: 'Stats' },
-    { key: '/sources', icon: <DatabaseOutlined />, label: 'Sources' },
+    { key: '/', icon: <HomeOutlined />, label: '記事一覧' },
+    { key: '/briefing', icon: <FileTextOutlined />, label: 'ブリーフィング' },
+    { key: '/chat', icon: <MessageOutlined />, label: 'AI チャット' },
+    { key: '/trends', icon: <LineChartOutlined />, label: 'トレンド' },
+    { key: '/stats', icon: <BarChartOutlined />, label: '統計' },
+    { key: '/sources', icon: <DatabaseOutlined />, label: 'ソース管理' },
   ]
 
-  // 现在的路径如果是 /category/xxx，把 selectedKey 设置为完整路径
   const selectedKey = decodeURIComponent(location.pathname)
 
   return (

@@ -43,7 +43,7 @@ export default function TrendsPage() {
       <div style={{ marginBottom: 24 }}>
         <Title level={3} style={{ margin: 0, marginBottom: 4 }}>
           <LineChartOutlined style={{ marginRight: 8, color: '#10b981' }} />
-          Trends
+          トレンド
         </Title>
         <Text type="secondary">タグ頻度とカテゴリ別の収集量推移</Text>
       </div>

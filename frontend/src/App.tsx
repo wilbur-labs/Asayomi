@@ -54,7 +54,7 @@ function AppLayout() {
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ color: dark ? '#94a3b8' : '#6b7280', fontSize: 13, letterSpacing: 0.3 }}>
-              Asayomi · Japan News Briefing
+              Asayomi · 日本ニュースまとめ
             </div>
             <Tooltip title={dark ? 'Light mode' : 'Dark mode'}>
               <Button
@@ -67,8 +67,9 @@ function AppLayout() {
         </Header>
         <Content style={{ padding: '24px 32px', maxWidth: 1280, margin: '0 auto', width: '100%' }}>
           <Routes>
+            {/* カテゴリは記事ページ内のフィルタタグで切替えるため、
+                /category/:category の独立ルートは廃止した。 */}
             <Route path="/" element={<ArticlesPage />} />
-            <Route path="/category/:category" element={<ArticlesPage />} />
             <Route path="/briefing" element={<BriefingPage />} />
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/trends" element={<TrendsPage />} />
