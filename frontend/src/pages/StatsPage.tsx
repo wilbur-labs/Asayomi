@@ -77,7 +77,7 @@ export default function StatsPage() {
         <div>
           <Title level={3} style={{ margin: 0, marginBottom: 4 }}>
             <BarChartOutlined style={{ marginRight: 8, color: '#10b981' }} />
-            Stats
+            統計
           </Title>
           <Text type="secondary">記事収集・AI処理・API用量の可視化</Text>
         </div>

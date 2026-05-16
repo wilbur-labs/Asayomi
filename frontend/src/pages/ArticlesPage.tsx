@@ -1,8 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
 import {
   Tag,
-  Select,
   Space,
   Empty,
   Typography,
@@ -23,10 +21,6 @@ import {
   StarOutlined,
   StarFilled,
   CheckOutlined,
-  AppstoreOutlined,
-  CodeOutlined,
-  DollarCircleOutlined,
-  GlobalOutlined,
 } from '@ant-design/icons'
 import {
   getArticles,
@@ -40,33 +34,16 @@ import {
 
 const { Title, Text, Paragraph } = Typography
 const { Search } = Input
+const { CheckableTag } = Tag
 
 const ALL_CATEGORIES = ['総合', 'テクノロジー', '経済・ビジネス', '国際']
 
-const CATEGORY_META: Record<
-  string,
-  { icon: any; gradient: string; description: string }
-> = {
-  総合: {
-    icon: <AppstoreOutlined />,
-    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    description: '主要な日本のニュース総合一覧',
-  },
-  テクノロジー: {
-    icon: <CodeOutlined />,
-    gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    description: 'IT・テック・スタートアップ・AI 関連',
-  },
-  '経済・ビジネス': {
-    icon: <DollarCircleOutlined />,
-    gradient: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)',
-    description: '日本経済・市場・企業ニュース',
-  },
-  国際: {
-    icon: <GlobalOutlined />,
-    gradient: 'linear-gradient(135deg, #ec4899 0%, #f43f5e 100%)',
-    description: '海外情勢・国際関係（英語ソースも自動翻訳）',
-  },
+// 各カテゴリのアクティブ時の色。フィルタタグ + 記事カード内タグで共通利用。
+const CATEGORY_COLOR: Record<string, string> = {
+  総合: '#667eea',
+  テクノロジー: '#0ea5e9',
+  '経済・ビジネス': '#f59e0b',
+  国際: '#ec4899',
 }
 
 const catClass = (cat: string) => {
@@ -107,14 +84,11 @@ function timeAgo(iso: string | null): string {
 const PAGE_SIZE = 20
 
 export default function ArticlesPage() {
-  const params = useParams<{ category?: string }>()
-  const fixedCategory = params.category ? decodeURIComponent(params.category) : ''
-  const meta = fixedCategory ? CATEGORY_META[fixedCategory] : null
-
   const [articles, setArticles] = useState<Article[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [category, setCategory] = useState<string>(fixedCategory)
+  // 空文字 = 「全て」。カテゴリは画面上のフィルタタグで切替える。
+  const [category, setCategory] = useState<string>('')
   const [keyword, setKeyword] = useState<string>('')
   const [searchMode, setSearchMode] = useState(false)
   const [favoriteOnly, setFavoriteOnly] = useState(false)
@@ -122,23 +96,13 @@ export default function ArticlesPage() {
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
 
-  // URL の category が変わったらフィルタもページもリセット
-  useEffect(() => {
-    setCategory(fixedCategory)
-    setPage(1)
-    setSearchMode(false)
-    setKeyword('')
-    setFavoriteOnly(false)
-    setUnreadOnly(false)
-  }, [fixedCategory])
-
   const fetchArticles = useCallback(async () => {
     setLoading(true)
     try {
       if (searchMode && keyword) {
         const res = await searchArticles(keyword)
-        const filtered = fixedCategory
-          ? res.data.articles.filter((a) => a.category === fixedCategory)
+        const filtered = category
+          ? res.data.articles.filter((a) => a.category === category)
           : res.data.articles
         setArticles(filtered)
         setTotal(filtered.length)
@@ -154,7 +118,7 @@ export default function ArticlesPage() {
     } finally {
       setLoading(false)
     }
-  }, [category, page, favoriteOnly, unreadOnly, searchMode, keyword, fixedCategory])
+  }, [category, page, favoriteOnly, unreadOnly, searchMode, keyword])
 
   useEffect(() => {
     fetchArticles()
@@ -221,37 +185,51 @@ export default function ArticlesPage() {
 
   return (
     <div>
-      {/* ヘッダー / カテゴリ Hero */}
-      {meta ? (
-        <div
-          style={{
-            background: meta.gradient,
-            padding: '24px 28px',
-            borderRadius: 16,
-            marginBottom: 24,
-            color: '#fff',
-            position: 'relative',
-            overflow: 'hidden',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-          }}
+      {/* ヘッダー */}
+      <div style={{ marginBottom: 16 }}>
+        <Title level={3} style={{ margin: 0, marginBottom: 4 }}>
+          <FireOutlined style={{ marginRight: 8, color: '#f59e0b' }} />
+          記事一覧
+        </Title>
+        <Text type="secondary">日本ニュース · 自動収集 · AI 要約</Text>
+      </div>
+
+      {/* カテゴリフィルタ（タグ形式） */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 6,
+          marginBottom: 16,
+          alignItems: 'center',
+        }}
+      >
+        <CheckableTag
+          checked={category === ''}
+          onChange={() => setCategory('')}
+          style={{ fontSize: 14, padding: '4px 14px', borderRadius: 999 }}
         >
-          <div style={{ fontSize: 56, opacity: 0.18, position: 'absolute', right: 16, top: 8 }}>
-            {meta.icon}
-          </div>
-          <Title level={2} style={{ color: '#fff', margin: 0, marginBottom: 4 }}>
-            {fixedCategory}
-          </Title>
-          <div style={{ opacity: 0.92, fontSize: 14 }}>{meta.description}</div>
-        </div>
-      ) : (
-        <div style={{ marginBottom: 24 }}>
-          <Title level={3} style={{ margin: 0, marginBottom: 4 }}>
-            <FireOutlined style={{ marginRight: 8, color: '#f59e0b' }} />
-            All Articles
-          </Title>
-          <Text type="secondary">日本ニュース · 自動収集 · AI 要約</Text>
-        </div>
-      )}
+          全て
+        </CheckableTag>
+        {ALL_CATEGORIES.map((c) => {
+          const active = category === c
+          return (
+            <CheckableTag
+              key={c}
+              checked={active}
+              onChange={() => setCategory(active ? '' : c)}
+              style={{
+                fontSize: 14,
+                padding: '4px 14px',
+                borderRadius: 999,
+                ...(active ? { background: CATEGORY_COLOR[c], color: '#fff' } : {}),
+              }}
+            >
+              {c}
+            </CheckableTag>
+          )
+        })}
+      </div>
 
       {/* ツールバー */}
       <div
@@ -267,14 +245,6 @@ export default function ArticlesPage() {
           alignItems: 'center',
         }}
       >
-        {!fixedCategory && (
-          <Select
-            value={category || '全て'}
-            onChange={(v) => setCategory(v === '全て' ? '' : v)}
-            options={['全て', ...ALL_CATEGORIES].map((c) => ({ value: c, label: c }))}
-            style={{ width: 160 }}
-          />
-        )}
         <Search
           placeholder="全文検索…"
           allowClear
@@ -331,14 +301,12 @@ export default function ArticlesPage() {
                     <div
                       style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}
                     >
-                      {!fixedCategory && (
-                        <Tag
-                          className={catClass(a.category)}
-                          style={{ borderRadius: 4, fontWeight: 500 }}
-                        >
-                          {a.category}
-                        </Tag>
-                      )}
+                      <Tag
+                        className={catClass(a.category)}
+                        style={{ borderRadius: 4, fontWeight: 500 }}
+                      >
+                        {a.category}
+                      </Tag>
                       <Tag bordered={false} color="default" style={{ borderRadius: 4 }}>
                         {a.source}
                       </Tag>

@@ -76,7 +76,7 @@ export default function SourcesPage() {
       <div style={{ marginBottom: 24 }}>
         <Title level={3} style={{ margin: 0, marginBottom: 4 }}>
           <DatabaseOutlined style={{ marginRight: 8, color: '#0891b2' }} />
-          Data Sources
+          ソース管理
         </Title>
         <Text type="secondary">RSS / Web ソースの管理と健全性確認</Text>
       </div>
