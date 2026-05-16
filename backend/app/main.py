@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -6,6 +6,7 @@ load_dotenv()
 
 from .core.config import settings
 from .core.database import engine, Base
+from .core.security import require_admin_token
 from .api import (
     articles_router,
     briefings_router,
@@ -39,7 +40,9 @@ app.add_middleware(
 app.include_router(articles_router)
 app.include_router(briefings_router)
 app.include_router(stats_router)
-app.include_router(system_router)
+# /system/* endpoints can spend Azure OpenAI tokens, hammer external RSS,
+# and fire notifications — gate behind ADMIN_TOKEN via shared-secret header.
+app.include_router(system_router, dependencies=[Depends(require_admin_token)])
 app.include_router(user_actions_router)
 app.include_router(search_router)
 app.include_router(sources_router)

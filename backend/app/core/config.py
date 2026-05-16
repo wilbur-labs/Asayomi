@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     # Frontend
     frontend_url: str = "http://localhost:5173"
 
+    # Admin auth — required to call /api/v1/system/* trigger endpoints.
+    # When unset, those routes return 503 (fail closed).
+    admin_token: Optional[str] = None
+
     # SMTP / メール通知
     smtp_host: Optional[str] = None
     smtp_port: int = 587
