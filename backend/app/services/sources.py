@@ -1,6 +1,14 @@
-"""RSS / Web ニュースソース定義"""
+"""ニュースソースの初期値 + DB シード関数。
 
-RSS_SOURCES = [
+実行時のソース一覧は `models.source.Source` テーブルに永続化される。
+このモジュールは「初回起動時のデフォルト値」のみを提供する。
+"""
+from sqlalchemy.orm import Session
+
+from ..models.source import Source
+
+
+DEFAULT_SOURCES: list[dict] = [
     # --- 日本語ソース ---
     {
         "name": "NHK News Web",
@@ -60,3 +68,17 @@ RSS_SOURCES = [
         "enabled": True,
     },
 ]
+
+
+def seed_sources_if_empty(db: Session) -> int:
+    """sources テーブルが空のときだけ DEFAULT_SOURCES から初期化する。
+
+    既存の運用 DB を壊さないため、空でなければ no-op。新しいデフォルト
+    ソースを追加する運用ジョブは別途用意してね。
+    """
+    if db.query(Source).count() > 0:
+        return 0
+    for entry in DEFAULT_SOURCES:
+        db.add(Source(**entry))
+    db.commit()
+    return len(DEFAULT_SOURCES)
