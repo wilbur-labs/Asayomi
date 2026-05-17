@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons'
 import Sidebar from './components/Sidebar'
 import ArticlesPage from './pages/ArticlesPage'
+import ArticleDetailPage from './pages/ArticleDetailPage'
 import BriefingPage from './pages/BriefingPage'
 import StatsPage from './pages/StatsPage'
 import SourcesPage from './pages/SourcesPage'
@@ -54,9 +55,9 @@ function AppLayout() {
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ color: dark ? '#94a3b8' : '#6b7280', fontSize: 13, letterSpacing: 0.3 }}>
-              Asayomi · Japan News Briefing
+              Asayomi · 日本ニュースブリーフィング
             </div>
-            <Tooltip title={dark ? 'Light mode' : 'Dark mode'}>
+            <Tooltip title={dark ? 'ライトモード' : 'ダークモード'}>
               <Button
                 type="text"
                 icon={dark ? <SunOutlined /> : <MoonOutlined />}
@@ -68,7 +69,7 @@ function AppLayout() {
         <Content style={{ padding: '24px 32px', maxWidth: 1280, margin: '0 auto', width: '100%' }}>
           <Routes>
             <Route path="/" element={<ArticlesPage />} />
-            <Route path="/category/:category" element={<ArticlesPage />} />
+            <Route path="/articles/:id" element={<ArticleDetailPage />} />
             <Route path="/briefing" element={<BriefingPage />} />
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/trends" element={<TrendsPage />} />

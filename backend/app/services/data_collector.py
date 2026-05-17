@@ -10,6 +10,7 @@ from ..core.database import SessionLocal
 from ..models.article import Article
 from .sources import RSS_SOURCES
 from .fulltext import fetch_full_text
+from .image_extractor import extract_image_from_entry, fetch_og_image
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,11 @@ def collect_from_source(db: Session, source: dict, fetch_fulltext: bool = False)
             if fetch_fulltext:
                 full_text = fetch_full_text(url)
 
+            # サムネイル画像の取得: RSS → og:image フォールバック
+            image_url = extract_image_from_entry(entry)
+            if not image_url and fetch_fulltext:
+                image_url = fetch_og_image(url)
+
             article = Article(
                 title=title,
                 original_title=title,
@@ -48,6 +54,7 @@ def collect_from_source(db: Session, source: dict, fetch_fulltext: bool = False)
                 language=source.get("language", "ja"),
                 original_content=entry.get("summary", ""),
                 full_content=full_text,
+                image_url=image_url,
                 published_at=parse_published(entry),
                 collected_at=datetime.now(timezone.utc),
             )

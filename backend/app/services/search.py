@@ -50,6 +50,7 @@ def _serialize(a: Article) -> dict:
         "category": a.category, "summary": a.summary, "language": a.language,
         "importance_score": a.importance_score,
         "tags": a.tags.split(",") if a.tags else [],
+        "image_url": a.image_url,
         "published_at": a.published_at.isoformat() if a.published_at else None,
         "collected_at": a.collected_at.isoformat() if a.collected_at else None,
         "is_favorite": a.is_favorite, "is_read": a.is_read,

@@ -20,9 +20,9 @@ def trigger_dedupe():
 
 
 @router.post("/process")
-def trigger_process():
+def trigger_process(missing_key_points: bool = False, limit: int = 50):
     from ..services.ai_processor import process_unprocessed
-    count = process_unprocessed(limit=50)
+    count = process_unprocessed(limit=limit, missing_key_points=missing_key_points)
     return {"message": f"AI処理完了: {count} 件"}
 
 

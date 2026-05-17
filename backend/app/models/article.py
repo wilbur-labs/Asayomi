@@ -14,8 +14,10 @@ class Article(Base):
     language = Column(String(10), default="ja")   # ja / en
     category = Column(String(50), default="総合")
     summary = Column(Text)                         # AI 要約（日本語）
+    key_points = Column(Text)                      # AI 要点 (JSON 配列)
     original_content = Column(Text)                # RSS の本文（短縮版）
     full_content = Column(Text)                    # 全文抓取結果
+    image_url = Column(String(1000))               # サムネイル画像 URL
     importance_score = Column(Float, default=0.0)
     tags = Column(String(500))
     published_at = Column(DateTime)

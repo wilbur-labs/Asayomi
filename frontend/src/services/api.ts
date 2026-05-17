@@ -11,12 +11,23 @@ export interface Article {
   language: string
   category: string
   summary: string | null
+  key_points?: string[]
   importance_score: number
   tags: string[]
+  image_url: string | null
   published_at: string | null
   collected_at: string | null
   is_favorite: boolean
   is_read: boolean
+  reading_minutes?: number
+  sibling_count?: number
+  sibling_sources?: string[]
+}
+
+export interface ArticleDetail extends Article {
+  full_content: string | null
+  original_content: string | null
+  siblings: { id: number; title: string; source: string; url: string }[]
 }
 
 export interface Source {
@@ -40,6 +51,11 @@ export const getArticles = (params?: {
 
 export const searchArticles = (q: string, limit = 50) =>
   api.get<{ total: number; articles: Article[] }>('/search', { params: { q, limit } })
+
+export const getArticle = (id: number) => api.get<ArticleDetail>(`/articles/${id}`)
+
+export const getRelatedArticles = (id: number, limit = 5) =>
+  api.get<{ related: Article[] }>(`/articles/${id}/related`, { params: { limit } })
 
 export const toggleFavorite = (id: number) =>
   api.post<{ id: number; is_favorite: boolean }>(`/articles/${id}/favorite`)

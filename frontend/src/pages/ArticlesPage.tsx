@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
   Tag,
-  Select,
+  Tabs,
   Space,
   Empty,
   Typography,
@@ -38,36 +38,16 @@ import {
   triggerProcess,
 } from '../services/api'
 
-const { Title, Text, Paragraph } = Typography
+const { Text, Paragraph } = Typography
 const { Search } = Input
 
-const ALL_CATEGORIES = ['総合', 'テクノロジー', '経済・ビジネス', '国際']
-
-const CATEGORY_META: Record<
-  string,
-  { icon: any; gradient: string; description: string }
-> = {
-  総合: {
-    icon: <AppstoreOutlined />,
-    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    description: '主要な日本のニュース総合一覧',
-  },
-  テクノロジー: {
-    icon: <CodeOutlined />,
-    gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    description: 'IT・テック・スタートアップ・AI 関連',
-  },
-  '経済・ビジネス': {
-    icon: <DollarCircleOutlined />,
-    gradient: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)',
-    description: '日本経済・市場・企業ニュース',
-  },
-  国際: {
-    icon: <GlobalOutlined />,
-    gradient: 'linear-gradient(135deg, #ec4899 0%, #f43f5e 100%)',
-    description: '海外情勢・国際関係（英語ソースも自動翻訳）',
-  },
-}
+const CATEGORY_TABS = [
+  { key: '', label: 'すべて', icon: <FireOutlined /> },
+  { key: '総合', label: '総合', icon: <AppstoreOutlined /> },
+  { key: 'テクノロジー', label: 'テクノロジー', icon: <CodeOutlined /> },
+  { key: '経済・ビジネス', label: '経済・ビジネス', icon: <DollarCircleOutlined /> },
+  { key: '国際', label: '国際', icon: <GlobalOutlined /> },
+]
 
 const catClass = (cat: string) => {
   const map: Record<string, string> = {
@@ -107,14 +87,10 @@ function timeAgo(iso: string | null): string {
 const PAGE_SIZE = 20
 
 export default function ArticlesPage() {
-  const params = useParams<{ category?: string }>()
-  const fixedCategory = params.category ? decodeURIComponent(params.category) : ''
-  const meta = fixedCategory ? CATEGORY_META[fixedCategory] : null
-
   const [articles, setArticles] = useState<Article[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [category, setCategory] = useState<string>(fixedCategory)
+  const [category, setCategory] = useState<string>('')
   const [keyword, setKeyword] = useState<string>('')
   const [searchMode, setSearchMode] = useState(false)
   const [favoriteOnly, setFavoriteOnly] = useState(false)
@@ -122,23 +98,13 @@ export default function ArticlesPage() {
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
 
-  // URL の category が変わったらフィルタもページもリセット
-  useEffect(() => {
-    setCategory(fixedCategory)
-    setPage(1)
-    setSearchMode(false)
-    setKeyword('')
-    setFavoriteOnly(false)
-    setUnreadOnly(false)
-  }, [fixedCategory])
-
   const fetchArticles = useCallback(async () => {
     setLoading(true)
     try {
       if (searchMode && keyword) {
         const res = await searchArticles(keyword)
-        const filtered = fixedCategory
-          ? res.data.articles.filter((a) => a.category === fixedCategory)
+        const filtered = category
+          ? res.data.articles.filter((a) => a.category === category)
           : res.data.articles
         setArticles(filtered)
         setTotal(filtered.length)
@@ -154,7 +120,7 @@ export default function ArticlesPage() {
     } finally {
       setLoading(false)
     }
-  }, [category, page, favoriteOnly, unreadOnly, searchMode, keyword, fixedCategory])
+  }, [category, page, favoriteOnly, unreadOnly, searchMode, keyword])
 
   useEffect(() => {
     fetchArticles()
@@ -221,37 +187,16 @@ export default function ArticlesPage() {
 
   return (
     <div>
-      {/* ヘッダー / カテゴリ Hero */}
-      {meta ? (
-        <div
-          style={{
-            background: meta.gradient,
-            padding: '24px 28px',
-            borderRadius: 16,
-            marginBottom: 24,
-            color: '#fff',
-            position: 'relative',
-            overflow: 'hidden',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-          }}
-        >
-          <div style={{ fontSize: 56, opacity: 0.18, position: 'absolute', right: 16, top: 8 }}>
-            {meta.icon}
-          </div>
-          <Title level={2} style={{ color: '#fff', margin: 0, marginBottom: 4 }}>
-            {fixedCategory}
-          </Title>
-          <div style={{ opacity: 0.92, fontSize: 14 }}>{meta.description}</div>
-        </div>
-      ) : (
-        <div style={{ marginBottom: 24 }}>
-          <Title level={3} style={{ margin: 0, marginBottom: 4 }}>
-            <FireOutlined style={{ marginRight: 8, color: '#f59e0b' }} />
-            All Articles
-          </Title>
-          <Text type="secondary">日本ニュース · 自動収集 · AI 要約</Text>
-        </div>
-      )}
+      {/* カテゴリ タブ */}
+      <Tabs
+        activeKey={category}
+        onChange={(key) => { setCategory(key); setPage(1) }}
+        items={CATEGORY_TABS.map((t) => ({
+          key: t.key,
+          label: <span>{t.icon} {t.label}</span>,
+        }))}
+        style={{ marginBottom: 16 }}
+      />
 
       {/* ツールバー */}
       <div
@@ -267,14 +212,6 @@ export default function ArticlesPage() {
           alignItems: 'center',
         }}
       >
-        {!fixedCategory && (
-          <Select
-            value={category || '全て'}
-            onChange={(v) => setCategory(v === '全て' ? '' : v)}
-            options={['全て', ...ALL_CATEGORIES].map((c) => ({ value: c, label: c }))}
-            style={{ width: 160 }}
-          />
-        )}
         <Search
           placeholder="全文検索…"
           allowClear
@@ -327,11 +264,41 @@ export default function ArticlesPage() {
                 style={{ padding: 20, opacity: a.is_read ? 0.65 : 1 }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+                  {a.image_url && (
+                    <Link
+                      to={`/articles/${a.id}`}
+                      style={{
+                        flex: '0 0 160px',
+                        width: 160,
+                        height: 100,
+                        borderRadius: 8,
+                        overflow: 'hidden',
+                        background: 'var(--tag-bg, #f3f4f6)',
+                        display: 'block',
+                      }}
+                    >
+                      <img
+                        src={a.image_url}
+                        alt=""
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          (e.currentTarget.parentElement as HTMLElement).style.display = 'none'
+                        }}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          display: 'block',
+                        }}
+                      />
+                    </Link>
+                  )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}
                     >
-                      {!fixedCategory && (
+                      {!category && (
                         <Tag
                           className={catClass(a.category)}
                           style={{ borderRadius: 4, fontWeight: 500 }}
@@ -362,11 +329,8 @@ export default function ArticlesPage() {
                         </span>
                       )}
                     </div>
-                    <a
-                      href={a.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => handleRead(a)}
+                    <Link
+                      to={`/articles/${a.id}`}
                       style={{
                         fontSize: 16,
                         fontWeight: 600,
@@ -378,8 +342,13 @@ export default function ArticlesPage() {
                       }}
                     >
                       {a.title}
-                      <LinkOutlined style={{ marginLeft: 6, fontSize: 12, opacity: 0.5 }} />
-                    </a>
+                    </Link>
+                    {a.sibling_count && a.sibling_count > 0 ? (
+                      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+                        🔁 同事件: {a.sibling_sources?.slice(0, 3).join('・')}
+                        {a.sibling_count > 3 ? ` 他 ${a.sibling_count - 3} 件` : ''}
+                      </Text>
+                    ) : null}
                     {a.original_title && a.language === 'en' && a.original_title !== a.title && (
                       <Text
                         type="secondary"
@@ -411,17 +380,28 @@ export default function ArticlesPage() {
                       </Space>
                     )}
                   </div>
-                  <Button
-                    type="text"
-                    icon={
-                      a.is_favorite ? (
-                        <StarFilled style={{ color: '#f59e0b' }} />
-                      ) : (
-                        <StarOutlined />
-                      )
-                    }
-                    onClick={() => handleFavorite(a)}
-                  />
+                  <Space direction="vertical" size={4}>
+                    <Button
+                      type="text"
+                      icon={
+                        a.is_favorite ? (
+                          <StarFilled style={{ color: '#f59e0b' }} />
+                        ) : (
+                          <StarOutlined />
+                        )
+                      }
+                      onClick={() => handleFavorite(a)}
+                    />
+                    <Tooltip title="元記事を開く">
+                      <Button
+                        type="text"
+                        icon={<LinkOutlined />}
+                        href={a.url}
+                        target="_blank"
+                        onClick={() => handleRead(a)}
+                      />
+                    </Tooltip>
+                  </Space>
                 </div>
               </div>
             ))}

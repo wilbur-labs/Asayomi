@@ -44,6 +44,13 @@ RSS_SOURCES = [
         "language": "ja",
         "enabled": True,
     },
+    {
+        "name": "Reuters Japan",
+        "url": "https://assets.wor.jp/rss/rdf/reuters/top.rdf",
+        "category": "国際",
+        "language": "ja",
+        "enabled": False,  # RSS 廃止済み
+    },
     # --- 英語ソース（AI で日本語に翻訳） ---
     {
         "name": "The Japan Times",

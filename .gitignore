@@ -23,6 +23,9 @@ logs/
 *.log
 *.pid
 
+# Backups
+backups/
+
 # IDE
 .vscode/
 .idea/

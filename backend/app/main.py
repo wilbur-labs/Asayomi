@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from .core.config import settings
 from .core.database import engine, Base
@@ -19,8 +20,27 @@ from .api import (
 )
 from .services.scheduler import start_scheduler, stop_scheduler
 from .services.search import init_fts5
+from sqlalchemy import text, inspect
+
+
+def _auto_migrate() -> None:
+    """既存 SQLite テーブルに対する軽量カラム追加マイグレーション。"""
+    insp = inspect(engine)
+    if "articles" not in insp.get_table_names():
+        return
+    existing_cols = {c["name"] for c in insp.get_columns("articles")}
+    additions = [
+        ("image_url", "VARCHAR(1000)"),
+        ("key_points", "TEXT"),
+    ]
+    with engine.begin() as conn:
+        for name, ddl in additions:
+            if name not in existing_cols:
+                conn.execute(text(f"ALTER TABLE articles ADD COLUMN {name} {ddl}"))
+
 
 Base.metadata.create_all(bind=engine)
+_auto_migrate()
 
 app = FastAPI(
     title="Asayomi API",

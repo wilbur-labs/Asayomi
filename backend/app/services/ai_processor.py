@@ -14,22 +14,60 @@ logger = logging.getLogger(__name__)
 
 CATEGORIES = ["総合", "テクノロジー", "経済・ビジネス", "国際"]
 
+# AI が返す可能性のあるカテゴリを正規の4カテゴリに正規化
+CATEGORY_MAP = {
+    "総合": "総合",
+    "テクノロジー": "テクノロジー",
+    "経済・ビジネス": "経済・ビジネス",
+    "国際": "国際",
+    "サイエンス": "テクノロジー",
+    "科学": "テクノロジー",
+    "IT": "テクノロジー",
+    "スポーツ": "総合",
+    "ライフ": "総合",
+    "生活": "総合",
+    "エンタメ": "総合",
+    "芸能": "総合",
+    "文化": "総合",
+    "文化・芸術": "総合",
+    "教育": "総合",
+    "教育・キャリア": "総合",
+    "医療・健康": "総合",
+    "事件・事故": "総合",
+    "社会": "総合",
+    "政治": "総合",
+    "経済": "経済・ビジネス",
+    "ビジネス": "経済・ビジネス",
+    "金融": "経済・ビジネス",
+    "海外": "国際",
+    "世界": "国際",
+}
+
+
+def normalize_category(cat: str) -> str:
+    """AI が返したカテゴリを正規の4カテゴリに正規化"""
+    if cat in CATEGORIES:
+        return cat
+    return CATEGORY_MAP.get(cat, "総合")
+
 SYSTEM_PROMPT_JA = """あなたは日本のニュース分析アシスタントです。日本語の記事を分析し、JSON で回答してください：
 - summary: 100文字以内の日本語要約
+- key_points: 記事の要点を 3〜5 個、各 30 文字程度の簡潔な日本語の箇条書き（配列）
 - category: 「総合」「テクノロジー」「経済・ビジネス」「国際」のいずれか
 - score: 0-10 の重要度（10が最重要）
 - tags: カンマ区切りで最大3つの日本語タグ
 
-形式: {"summary": "...", "category": "...", "score": 7, "tags": "タグ1,タグ2,タグ3"}"""
+形式: {"summary": "...", "key_points": ["...", "...", "..."], "category": "...", "score": 7, "tags": "タグ1,タグ2,タグ3"}"""
 
 SYSTEM_PROMPT_EN = """あなたは英日翻訳・ニュース分析アシスタントです。英語の記事を読み、JSON で回答してください：
 - translated_title: 英語タイトルの自然な日本語訳
 - summary: 100文字以内の日本語要約
+- key_points: 記事の要点を 3〜5 個、各 30 文字程度の簡潔な日本語の箇条書き（配列）
 - category: 「総合」「テクノロジー」「経済・ビジネス」「国際」のいずれか
 - score: 0-10 の重要度（10が最重要）
 - tags: カンマ区切りで最大3つの日本語タグ
 
-形式: {"translated_title": "...", "summary": "...", "category": "...", "score": 7, "tags": "タグ1,タグ2,タグ3"}"""
+形式: {"translated_title": "...", "summary": "...", "key_points": ["...", "...", "..."], "category": "...", "score": 7, "tags": "タグ1,タグ2,タグ3"}"""
 
 
 def get_client() -> Optional[AzureOpenAI]:
@@ -80,7 +118,11 @@ def process_article(client: AzureOpenAI, article: Article) -> bool:
         if is_english and result.get("translated_title"):
             article.title = result["translated_title"]  # 表示用を翻訳後に更新
         article.summary = result.get("summary", "")
-        article.category = result.get("category", article.category)
+        # key_points は配列で受け取るが、DB には JSON 文字列で保存
+        kp = result.get("key_points")
+        if isinstance(kp, list):
+            article.key_points = json.dumps(kp, ensure_ascii=False)
+        article.category = normalize_category(result.get("category", article.category))
         article.importance_score = float(result.get("score", 5))
         article.tags = result.get("tags", "")
         article.processed = True
@@ -90,8 +132,11 @@ def process_article(client: AzureOpenAI, article: Article) -> bool:
         return False
 
 
-def process_unprocessed(limit: int = 20) -> int:
-    """未処理記事をバッチ処理"""
+def process_unprocessed(limit: int = 20, missing_key_points: bool = False) -> int:
+    """未処理記事をバッチ処理。
+
+    missing_key_points=True の場合、key_points 未生成の処理済み記事も対象にする。
+    """
     client = get_client()
     if not client:
         logger.warning("Azure OpenAI 未設定。スキップします。")
@@ -99,13 +144,14 @@ def process_unprocessed(limit: int = 20) -> int:
 
     db = SessionLocal()
     try:
-        articles = (
-            db.query(Article)
-            .filter(Article.processed == False, Article.is_duplicate == False)
-            .order_by(Article.collected_at.desc())
-            .limit(limit)
-            .all()
-        )
+        q = db.query(Article).filter(Article.is_duplicate == False)
+        if missing_key_points:
+            q = q.filter(
+                (Article.processed == False) | (Article.key_points.is_(None))
+            )
+        else:
+            q = q.filter(Article.processed == False)
+        articles = q.order_by(Article.collected_at.desc()).limit(limit).all()
         count = 0
         for article in articles:
             if process_article(client, article):
